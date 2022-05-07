@@ -2,10 +2,10 @@
 . ./cmd.sh 
 . ./path.sh
 export PATH=$PATH:/home/miguel/CMU-Cam_Toolkit_v2/bin
-exp_dir=/home/miguel/HMM-GMM-Beta
-lang_dir=/home/miguel/HMM-GMM-Beta/lang_dir
-dict_plain=/home/miguel/HMM-GMM-Beta/lang_dir/init_plain
-lang_files_dir=/home/miguel/HMM-GMM-Beta/data
+exp_dir=$HOME/HMM-GMM-Base
+lang_dir=$exp_dir/lang_dir
+dict_plain=$exp_dir/lang_dir/init_plain
+lang_files_dir=$exp_dir/data
 
 echo "Creating language model ..."
 rm -rf $lang_dir
@@ -51,7 +51,7 @@ cp $lang_files_dir/silence_phones.txt $dict_init/silence_phones.txt
 cp $lang_files_dir/nonsilence_phones.txt $dict_init/nonsilence_phones.txt
 cp $lang_files_dir/optional_silence.txt $dict_init/optional_silence.txt
 cd $exp_dir
-utils/prepare_lang.sh --num-sil-states 3 --num-nonsil-states 3 --position-dependent-phones false --sil-prob 0 $lang_dir/$dict_init "UND" $lang_dir/$language_model_tmp $lang_dir/$language_model_dir
+utils/prepare_lang.sh --num-sil-states 3 --num-nonsil-states 3 --position-dependent-phones false --sil-prob 0.5 $lang_dir/$dict_init "UND" $lang_dir/$language_model_tmp $lang_dir/$language_model_dir
 # Custom topo
 #cp topo $lang_dir/$language_model_dir
 

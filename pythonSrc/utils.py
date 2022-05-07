@@ -38,6 +38,7 @@ def check_disjoint(idx1, idx2):
 
 def load_data(path):
     import pickle, os
+    from Frame import Frame, Utterance
     train_data_path = os.path.join(path, "train_data.pkl")
     test_data_path = os.path.join(path, "test_data.pkl")
     dev_data_path = os.path.join(path, "dev_data.pkl")
@@ -79,3 +80,63 @@ def write_text(utt_idxs, events, filename):
         f.write("\n")
     
     
+def modify_annotations(original_annotations, new_annotations_dict=None):
+    if new_annotations_dict is None:
+        new_annotations_dict = {
+        "S1.1": "SEP",
+        "S1.2": "S12",
+        "S1.3": "S13",
+        "S2.1": "S21",
+        "S2.2": "S22",
+        "S2.3": "S23",
+        "S2.4": "S23",
+        "AA.1": "AA",
+        "AA.2": "AA",
+        "AA.3": "AA",
+        "FW.S": "FWS",
+        "FW.D": "FWD",
+        "FW.D2": "FWD2",
+        "FW.D3": "FWD3",
+        "FW.D4": "FWD3",
+        "SW.D": "SWD",
+        "SW.U": "SWU",
+        "UND-G": "UND",
+        "U.W": "UW",
+        "A.N": "AN",
+        "U.AN": "UAN",
+        "AG.P": "AGP",
+        "UND.B": "UNDB",
+    }
+    labels = original_annotations['label']
+    original_begin_times = original_annotations['begin']
+    original_end_times = original_annotations['end']
+    original_snrs = original_annotations['snr']
+    new_begins = []
+    new_ends = []
+    new_labels = []
+    new_snrs = []
+    for annotation_idx in range(len(original_begin_times)):
+        current_annotation = labels[annotation_idx]
+        if current_annotation in new_annotations_dict.keys():
+            current_annotation = new_annotations_dict[current_annotation]
+        new_begins.append(original_begin_times[annotation_idx])
+        new_ends.append(original_end_times[annotation_idx])
+        new_labels.append(current_annotation)
+        new_snrs.append(original_snrs[annotation_idx])
+    new_annotations = {'begin': new_begins, 'end': new_ends, 'label': new_labels, 'snr': new_snrs}
+    return new_annotations
+
+
+def join_dictionaries(all_dicts):
+    """
+    Join in a single dictionary a dictionary of events
+    :param all_dicts: Dictionary of dictionaries
+    :return: A single dictionary containing all the training examples
+    """
+    all_utts = {}
+    utt_idx = 1
+    for db_key in all_dicts.keys():
+        for train_idx in all_dicts[db_key].keys():
+            all_utts[utt_idx] = all_dicts[db_key][train_idx]
+            utt_idx += 1
+    return all_utts
