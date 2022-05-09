@@ -2,10 +2,11 @@
 . ./path.sh
 
 # Language model directory
-lang_dir=/home/miguel/HMM-GMM-Beta/lang_dir/lm
+exp_name=HMM-GMM-Base
+lang_dir=$HOME/$exp_name/lang_dir/lm
 # Train data
-exp_name=HMM-GMM-Beta
-decode_train=true
+
+decode_train=false
 datadir=exp_data
 matlab_code_dir=matlab_src
 extract_features=true
@@ -71,41 +72,6 @@ if [ $stage -le 1 ]; then
 	fi
 fi
 
-if [ $stage -le 2 ]; then
-##steps/align_si.sh --boost-silence 1.5 --nj 6 --cmd run.pl \
-##	
-##for leaves in 500 1000 2000; do
-##	for gauss in 2500 5000 10000 15000; do
-##		dir=exp/tri1-${leaves}-${gauss}
-##		steps/train_deltas.sh --boost-silence 1.5 --cmd run.pl $leaves $gauss \
-##			$datadir/train $lang_dir exp/mono_train_ali $dir
-##		utils/mkgraph.sh $lang_dir $dir $dir/graph
-##		steps/decode.sh --nj 10 --cmd run.pl $dir/graph \
-##			$datadir/dev $dir/decode_test
-##		steps/get_ctm.sh --frame-shift 1 exp_data/dev $lang_dir $dir/decode_test 
-##	done
-##done
-
-	dir=exp/tri1
-	rm -r $dir
-	steps/align_si.sh --boost-silence 1.3 --nj 6 --cmd run.pl \
-		$datadir/train $lang_dir exp/mono exp/mono_ali
-		
-	steps/train_deltas.sh --boost-silence 1.3 --cmd run.pl 1500 3000 \
-		$datadir/train $lang_dir exp/mono_ali exp/tri1
-		
-	utils/mkgraph.sh $lang_dir exp/tri1 exp/tri1/graph
-	
-		if $decode_train; then
-			steps/decode.sh --nj 8 \
-			$dir/graph $datadir/train $dir/decode_train
-			steps/get_ctm.sh --frame-shift 1 $datadir/train $lang_dir $dir/decode_train
-		fi
-	steps/decode.sh --nj 6 --cmd run.pl exp/tri1/graph \
-		$datadir/test exp/tri1/decode_test
-		
-	steps/get_ctm.sh --frame-shift 1 exp_data/test $lang_dir exp/tri1/decode_test 
-fi
 
 
 

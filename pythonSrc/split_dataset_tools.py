@@ -17,9 +17,9 @@ def fitness(train_idxs, test_idxs, all_data):
     current_train_data = {}
     current_test_data = {}
     for key in train_idxs:
-        current_train_data[key] = all_data[key]
+        current_train_data[key] = all_data.get_utt(key)
     for key in test_idxs:
-        current_test_data[key] = all_data[key]
+        current_test_data[key] = all_data.get_utt(key)
     train_stats = get_event_counts(current_train_data)
     test_stats = get_event_counts(current_test_data)
     # Check that both train and test have the same key. If not, set count to 0
@@ -90,7 +90,7 @@ def mutation(first_idx_train, first_idx_test, n=2):
 def crossover(all_data, first_idx_train, second_idx_train):
     from utils import check_disjoint
     import numpy as np
-    all_idxs = list(all_data.keys())
+    all_idxs = list(all_data.get_keys())
     # Keep only those idxs with no repeated utts
     new_train_idxs = list(np.unique(np.concatenate((first_idx_train, second_idx_train), axis=None)))
     np.random.shuffle(new_train_idxs)
@@ -119,7 +119,7 @@ def run_epoch(train_idxs, test_idxs, all_data, win_per, cross_per, mut_per, test
         n_best_test_idxs.append(test_mut)
     n_difference = len(train_idxs) - len(n_best_train_idxs)
     for dif in range(n_difference):
-        key_train, key_test = train_test_split(list(all_data.keys()), test_size=test_per / 100)
+        key_train, key_test = train_test_split(list(all_data.get_keys()), test_size=test_per / 100)
         n_best_train_idxs.append(key_train)
         n_best_test_idxs.append(key_test)
 
@@ -129,10 +129,10 @@ def run_epoch(train_idxs, test_idxs, all_data, win_per, cross_per, mut_per, test
 def train_test_dev_split(data, test_per=40, n_examples=500, win_per=25, mut_per=55, cross_per=5, max_epoch=150,
                          th_fit=99):
     from sklearn.model_selection import train_test_split
-    num_utt = len(data.keys())
+    num_utt = len(data.get_keys())
     print("Found " + str(num_utt) + " training examples (utterances)")
     print("Train set will contain " + str(100 - test_per) + "% of the examples")
-    all_data_keys = list(data.keys())
+    all_data_keys = list(data.get_keys())
     division_props_train = []
     division_props_test = []
     for n in range(n_examples):

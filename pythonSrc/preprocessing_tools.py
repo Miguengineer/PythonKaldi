@@ -1,3 +1,95 @@
+# Class definition for a Training Example
+class Frame:
+    """ Here I would write some class documentation, though I have not time at the moment. Let the
+    future me swear his Miguel of the past for this laziness """
+
+    def __init__(self, snr=0, label='SIL', sil_frame=True, audio=None):
+        if audio is None:
+            audio = []
+        self.snr = snr
+        self.label = label
+        self.sil_frame = sil_frame
+        self.audio = audio
+
+    def add_audio(self, audio):
+        if len(audio) == 0:
+            print("Warning! A frame has been assigned with an audio of 0 length.")
+        self.audio = audio
+
+
+class Utterance:
+    def __init__(self, frames, audio, unit_name, events):
+        self.frames = frames
+        self.audio = audio
+        self.unit_name = unit_name
+        self.events = events
+
+    def add_audio_to_frames(self, overlap=0.5, frame_size=128):
+        from math import ceil
+        audio_aux = self.audio
+        samples_to_extract = int(frame_size)
+        for frame in self.frames:
+            frame_unit = audio_aux[0:samples_to_extract]
+            audio_aux = audio_aux[int(ceil(samples_to_extract * overlap)):]
+            frame.add_audio(frame_unit)
+
+
+class Data:
+    def __init__(self):
+        self.data = {}
+
+    def add_utterance(self, key, utt):
+        self.data[key] = utt
+
+    def get_keys(self):
+        return self.data.keys()
+
+    def get_utt(self, idx):
+        return self.data[idx]
+
+    def split_data(self, idx1, idx2):
+        data_idx1 = Data()
+        data_idx2 = Data()
+        for idx in idx1:
+            data_idx1.add_utterance(idx, self.get_utt(idx))
+        for idx in idx2:
+            data_idx2.add_utterance(idx, self.get_utt(idx))
+        return data_idx1, data_idx2
+
+    def compute_event_counts(self):
+        event_counts = {}
+        total_events = 0
+        for utt_key in self.get_keys():
+            events = self.get_utt(utt_key).events
+            total_events += len([event for event in events if event != "SIL"])
+            for event in events:
+                if event not in event_counts.keys():
+                    event_counts[event] = 1
+                else:
+                    event_counts[event] += 1
+        return event_counts
+
+    def eliminate_low_count_events(self, threshold=100):
+        counts = self.compute_event_counts()
+        events_to_eliminate = []
+        new_data = Data()
+        print(counts)
+        for event in counts.keys():
+            if counts[event] < threshold:
+                events_to_eliminate.append(event)
+        print("The following events will be eliminated: ")
+        print(events_to_eliminate)
+        new_key = 1
+        for idx in self.data.keys():
+            utt = self.get_utt(idx)
+            test_list = [test_event for test_event in events_to_eliminate if test_event in utt.events]
+            if len(test_list) == 0:
+                new_data.add_utterance(new_key, utt)
+                new_key += 1
+        return new_data
+
+
+
 def check_all_silent(utterance):
     for frame in utterance.frames:
         if not frame.sil_frame:
@@ -5,8 +97,7 @@ def check_all_silent(utterance):
     return True
 
 
-
-def make_ali(annotations, audio, frame_size=0.512, overlap=0.5, modify_annotations=True):
+def make_ali(annotations, audio, frame_size=0.512, overlap=0.5):
     """
     Make a frame-to-frame alignment based on given annotations for audio. Divides the audio into overlapping frames and
     assign each frame a label.
@@ -18,7 +109,6 @@ def make_ali(annotations, audio, frame_size=0.512, overlap=0.5, modify_annotatio
     :return: frame-to-frame alignments for audio
     """
     import numpy as np
-    from Frame import Frame
     from utils import modify_annotations
     # Sample rate
     fs = 250
@@ -80,7 +170,6 @@ def make_utterances(ali, frame_size, audio, audioname, audios_path, frames_per_u
     import soundfile as sf
     import numpy as np
     import os
-    from Frame import Utterance
     db_utterances = []
     aux_ali = ali.copy()
     initial_total_frames = len(aux_ali)
@@ -121,6 +210,7 @@ def make_utterances(ali, frame_size, audio, audioname, audios_path, frames_per_u
         events = get_events_in_ali(alignments)
         new_utt = Utterance(frames, new_unit, unit_name, events)
         if remove_sil and not check_all_silent(new_utt):
+            new_utt.add_audio_to_frames()
             db_utterances.append(new_utt)
         assert len(new_unit) > 0, "Error! An unit with length 0 is being written. This is bad, some error occurred when" \
                                   "creating utterances"
@@ -140,11 +230,11 @@ def join_utterances(data_per_db):
     of utterances. Dictionary contains another dictionary with alignments, snrs, and name of audio unit
     """
     # All utterances are key-indexed
-    all_data = {}
+    all_data = Data()
     utt_idx = 1
     for db_key in data_per_db.keys():
         for utt in data_per_db[db_key]:
-            all_data[utt_idx] = utt
+            all_data.add_utterance(utt_idx, utt)
             utt_idx += 1
     return all_data
 
@@ -170,8 +260,6 @@ def get_num_frames(dur, frame_size, overlap=0.5):
     return num_frames
 
 
-
-
 def get_events_in_ali(data):
     """
     Get the events present in a dictionary containing utterances. N consecutive frames of one phone is considered
@@ -193,29 +281,11 @@ def get_phones(data):
     :return: list of all phones (events) present in a dictionary of utterances
     """
     phones = set()
-    for utt_key in data:
-        utt = data[utt_key]
+    for utt_key in data.get_keys():
+        utt = data.get_utt(utt_key)
         for event in utt.events:
             phones.add(event)
     return phones
-
-
-def add_events(data):
-    """
-    Add the events present in a dictionary containing utterances. N consecutive frames of one phone is considered
-    an event. For example, an alignment of five frames which looks like: [ERQ, ERQ, ERQ, SHIP, ERQ] would be represented
-    by 3 events: [ERQ, SHIP ,ERQ]
-    :param data: Dictionary containing utterances keyed by utterance id or key.
-    :return: Same data structure, but with a new item in the dictionary ['events']
-    """
-    new_all_data = {}
-    for utt_key in data.keys():
-        utt_dict = data[utt_key]
-        ali = utt_dict['alignments']
-        trans = [v for i, v in enumerate(ali) if i == 0 or v != ali[i - 1]]
-        utt_dict['events'] = trans
-        new_all_data[utt_key] = utt_dict
-    return new_all_data
 
 
 def write_phones(data):
@@ -223,11 +293,7 @@ def write_phones(data):
     Write phones.txt file needed to create a Language Model
     :param data: dictionary keyed by utt ids. Events must be present in each member
     """
-    phones = set()
-    for utt_key in data:
-        utt = data[utt_key]
-        for event in utt.events:
-            phones.add(event)
+    phones = get_phones(data)
     file = open("phones.txt", "w")
     file.write("<eps> 0 \n")
     phone_idx = 1
@@ -247,7 +313,7 @@ def make_spk2utt(data, path):
     """
     import os
     file = open(os.path.join(path, "spk2utt"), "w")
-    for utt_idx in data.keys():
+    for utt_idx in data.get_keys():
         file.write("%05d %05d\n" % (utt_idx, utt_idx))
     file.close()
 
@@ -260,7 +326,7 @@ def make_utt2spk(data, path):
     """
     import os
     file = open(os.path.join(path, "utt2spk"), "w")
-    for utt_idx in data.keys():
+    for utt_idx in data.get_keys():
         file.write("%05d %05d\n" % (utt_idx, utt_idx))
     file.close()
 
@@ -273,7 +339,7 @@ def make_spk2gender(data, path):
     """
     import os
     file = open(os.path.join(path, "spk2gender"), "w")
-    for utt_idx in data.keys():
+    for utt_idx in data.get_keys():
         file.write("%05d m\n" % utt_idx)
     file.close()
 
@@ -287,8 +353,8 @@ def make_wav(data, path, dirpath=''):
     """
     import os
     file = open(os.path.join(path, "wav.scp"), "w")
-    for utt_idx in data.keys():
-        file.write("%05d " % utt_idx + os.path.join(dirpath, data[utt_idx].unit_name) + "\n")
+    for utt_idx in data.get_keys():
+        file.write("%05d " % utt_idx + os.path.join(dirpath, data.get_utt(utt_idx).unit_name) + "\n")
     file.close()
 
 
@@ -300,9 +366,9 @@ def write_text(data, path):
     """
     import os
     file = open(os.path.join(path, "text"), "w")
-    for utt_idx in data.keys():
+    for utt_idx in data.get_keys():
         file.write("%05d " % utt_idx)
-        for event in data[utt_idx].events:
+        for event in data.get_utt(utt_idx).events:
             file.write(event + " ")
         file.write("\n")
     file.close()
@@ -418,29 +484,6 @@ def make_kaldi_files(path, all_data, train_data, test_data, dev_data):
     write_text(dev_data, path=dev_dir)
 
 
-def compute_events_statistics(data):
-    event_counts = {}
-    total_events = 0
-    for utt_key in data.keys():
-        events = data[utt_key].events
-        total_events += len([event for event in events if event != "SIL"])
-        for event in events:
-            if event not in event_counts.keys():
-                event_counts[event] = 1
-            else:
-                event_counts[event] += 1
-    return event_counts
 
 
-def get_event_counts(data):
-    event_counts = {}
-    total_events = 0
-    for utt_key in data.keys():
-        events = data[utt_key]['events']
-        total_events += len([event for event in events if event != "SIL"])
-        for event in events:
-            if event not in event_counts.keys():
-                event_counts[event] = 1
-            else:
-                event_counts[event] += 1
-    return event_counts
+

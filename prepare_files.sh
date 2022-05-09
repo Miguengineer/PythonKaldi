@@ -23,7 +23,7 @@ cp $python_code_dir/eliminate_low_count_events.py data
 cp $python_code_dir/utils.py data
 cp $python_code_dir/preprocessing_tools.py data
 cp $python_code_dir/split_dataset_tools.py data
-cp $python_code_dir/Frame.py data
+#cp $python_code_dir/Frame.py data
 cd data
 
 
@@ -31,8 +31,8 @@ python -W ignore initialize_hmm_gmm.py $HOME/$exp_name
 cp phones.txt ../exp_data/train
 cp phones.txt ../exp_data/test
 cp phones.txt ../exp_data/dev
-python -W ignore eliminate_low_count_events.py $HOME/$exp_name
-cp phones.txt ../exp_data/train
-cp phones.txt ../exp_data/test
-cp phones.txt ../exp_data/dev
+#python -W ignore eliminate_low_count_events.py $HOME/$exp_name
+#cp phones.txt ../exp_data/train
+#cp phones.txt ../exp_data/test
+#cp phones.txt ../exp_data/dev
 
